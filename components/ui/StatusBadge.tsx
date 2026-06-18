@@ -15,8 +15,9 @@ const CONFIG: Record<
   submitted: { label: "Submitted",  bg: "#dbeafe", fg: "#1d4ed8" },
   approved:  { label: "Approved",   bg: "#dcfce7", fg: "#15803d" },
   rejected:  { label: "Rejected",   bg: "#fee2e2", fg: "#dc2626" },
-  voting:    { label: "Voting",     bg: "#fde8d8", fg: "#c2410c" },
-  refunded:  { label: "Refunded",   bg: "#f1f5f9", fg: "#64748b" },
+  voting:     { label: "Voting",     bg: "#fde8d8", fg: "#c2410c" },
+  verifying:  { label: "Verifying",  bg: "#ede9fe", fg: "#6d28d9" },
+  refunded:   { label: "Refunded",   bg: "#f1f5f9", fg: "#64748b" },
 };
 
 export default function StatusBadge({ status }: { status: Status }) {

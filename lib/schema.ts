@@ -10,6 +10,7 @@ export type MilestoneStatus =
   | "approved"
   | "rejected"
   | "voting"
+  | "verifying"
   | "refunded";
 
 export interface Campaign {

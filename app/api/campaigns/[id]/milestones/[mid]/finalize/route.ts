@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -22,44 +21,22 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
-    let newMilestoneStatus: string;
-    let newCampaignStatus = campaign.status;
+    let tx_hash = "";
 
     if (isContractDeployed()) {
       const client = getGenLayerClient();
-      const tx = await client.writeContract({
+      tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "finalize_vote",
         args: [campaign.contract_id, milestone.contract_milestone_id, now],
       });
-      await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
-      });
-
-      const chainMilestones = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_milestones",
-        args: [campaign.contract_id],
-      }) as Array<{ id: string; status: string }>;
-
-      const chainM = chainMilestones.find(
-        (m) => m.id === milestone.contract_milestone_id
-      );
-      newMilestoneStatus = chainM?.status || "rejected";
-
-      const chainCampaign = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_campaign",
-        args: [campaign.contract_id],
-      }) as { status: string };
-      newCampaignStatus = chainCampaign.status;
-    } else {
-      const approveVotes = BigInt(milestone.votes_approve || "0");
-      const rejectVotes = BigInt(milestone.votes_reject || "0");
-      newMilestoneStatus = approveVotes >= rejectVotes ? "approved" : "rejected";
-      if (newMilestoneStatus === "rejected") newCampaignStatus = "failed";
     }
+
+    // Compute outcome locally from DB vote tallies (optimistic prediction)
+    const approveVotes = BigInt(milestone.votes_approve || "0");
+    const rejectVotes = BigInt(milestone.votes_reject || "0");
+    const newMilestoneStatus = approveVotes >= rejectVotes ? "approved" : "rejected";
+    const newCampaignStatus = newMilestoneStatus === "rejected" ? "failed" : campaign.status;
 
     await sql`
       UPDATE milestones
@@ -73,10 +50,7 @@ export async function POST(
 
     const [updatedCampaign] = await sql`SELECT * FROM campaigns WHERE id = ${id}`;
     const [updatedMilestone] = await sql`SELECT * FROM milestones WHERE id = ${mid}`;
-    return NextResponse.json({
-      milestone: updatedMilestone,
-      campaign: updatedCampaign,
-    });
+    return NextResponse.json({ milestone: updatedMilestone, campaign: updatedCampaign, tx_hash });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

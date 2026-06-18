@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -33,24 +32,18 @@ export async function POST(
         functionName: "back_campaign",
         args: [campaign.contract_id, amount_wei, now],
       });
-      const receipt = await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
-      });
-      tx_hash = receipt.hash || tx;
+      tx_hash = tx;
     }
 
-    const backerId = `backer_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const newAmountWei = (
-      BigInt(campaign.raised_wei) + BigInt(amount_wei)
-    ).toString();
-
-    const newStatus =
-      newAmountWei >= campaign.goal_wei ? "funded" : campaign.status;
+    const newRaisedWei = (BigInt(campaign.raised_wei) + BigInt(amount_wei)).toString();
+    const newStatus = BigInt(newRaisedWei) >= BigInt(campaign.goal_wei) ? "funded" : campaign.status;
 
     await sql`
       INSERT INTO backers (id, campaign_id, backer_address, amount_wei, backed_at, tx_hash)
-      VALUES (${backerId}, ${id}, ${backer_address}, ${amount_wei}, ${now}, ${tx_hash})
+      VALUES (
+        ${"backer_" + Date.now() + "_" + Math.random().toString(36).slice(2)},
+        ${id}, ${backer_address}, ${amount_wei}, ${now}, ${tx_hash}
+      )
       ON CONFLICT (campaign_id, backer_address)
       DO UPDATE SET
         amount_wei = (backers.amount_wei::numeric + ${amount_wei}::numeric)::text,
@@ -59,10 +52,8 @@ export async function POST(
 
     await sql`
       UPDATE campaigns
-      SET raised_wei = ${newAmountWei},
-          backer_count = (
-            SELECT COUNT(*) FROM backers WHERE campaign_id = ${id}
-          ),
+      SET raised_wei = ${newRaisedWei},
+          backer_count = (SELECT COUNT(*) FROM backers WHERE campaign_id = ${id}),
           status = ${newStatus}
       WHERE id = ${id}
     `;

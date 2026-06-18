@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,19 +55,29 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (!title || !description || !goal_wei || !deadline || !creator_address) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const now = new Date().toISOString();
-    let contract_id = "";
+    let contract_id = `c${Date.now()}`;
     let tx_hash = "";
 
     if (isContractDeployed()) {
       const client = getGenLayerClient();
 
+      // Read current count to predict the contract_id
+      try {
+        const countRaw = await client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "get_campaign_count",
+          args: [],
+        });
+        contract_id = `c${String(countRaw)}`;
+      } catch (_) {
+        // fall back to timestamp-based id
+      }
+
+      // Submit tx and return immediately — no waiting for finalization
       const writeTx = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "create_campaign",
@@ -82,24 +91,7 @@ export async function POST(req: NextRequest) {
           now,
         ],
       });
-
-      const receipt = await client.waitForTransactionReceipt({
-        hash: writeTx,
-        status: TransactionStatus.FINALIZED,
-      });
-
-      tx_hash = receipt.hash || writeTx;
-
-      // Read back the campaign count to derive the contract ID
-      const countRaw = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_campaign_count",
-        args: [],
-      });
-      const count = parseInt(String(countRaw), 10);
-      contract_id = `c${count - 1}`;
-    } else {
-      contract_id = `c${Date.now()}`;
+      tx_hash = writeTx;
     }
 
     const id = `campaign_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -121,25 +113,28 @@ export async function POST(req: NextRequest) {
         const m = milestones[idx];
         const mid = `m${Date.now()}_${idx}`;
         const contract_milestone_id = `m${idx}`;
+        let mTxHash = "";
 
         if (isContractDeployed()) {
           const client = getGenLayerClient();
-          const mTx = await client.writeContract({
-            address: CONTRACT_ADDRESS,
-            functionName: "add_milestone",
-            args: [
-              contract_id,
-              contract_milestone_id,
-              m.title,
-              m.description,
-              m.target_amount_wei || "0",
-              m.due_date,
-            ],
-          });
-          await client.waitForTransactionReceipt({
-            hash: mTx,
-            status: TransactionStatus.FINALIZED,
-          });
+          // Submit milestone tx without waiting
+          try {
+            const mTx = await client.writeContract({
+              address: CONTRACT_ADDRESS,
+              functionName: "add_milestone",
+              args: [
+                contract_id,
+                contract_milestone_id,
+                m.title,
+                m.description,
+                m.target_amount_wei || "0",
+                m.due_date,
+              ],
+            });
+            mTxHash = mTx;
+          } catch (_) {
+            // milestone tx failed to submit — record still goes to DB
+          }
         }
 
         await sql`
@@ -157,7 +152,7 @@ export async function POST(req: NextRequest) {
     const [campaign] = await sql`SELECT * FROM campaigns WHERE id = ${id}`;
     const dbMilestones = await sql`SELECT * FROM milestones WHERE campaign_id = ${id} ORDER BY order_index`;
 
-    return NextResponse.json({ campaign, milestones: dbMilestones }, { status: 201 });
+    return NextResponse.json({ campaign, milestones: dbMilestones, tx_hash }, { status: 201 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });

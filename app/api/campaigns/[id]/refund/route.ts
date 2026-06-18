@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -25,25 +24,19 @@ export async function POST(
     if (backer.refunded) return NextResponse.json({ error: "Already refunded" }, { status: 400 });
 
     const now = new Date().toISOString();
+    let tx_hash = "";
 
     if (isContractDeployed()) {
       const client = getGenLayerClient();
-      const tx = await client.writeContract({
+      tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "claim_refund",
         args: [campaign.contract_id, now],
       });
-      await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
-      });
     }
 
-    await sql`
-      UPDATE backers SET refunded = true WHERE id = ${backer.id}
-    `;
-
-    return NextResponse.json({ refunded: true, amount_wei: backer.amount_wei });
+    await sql`UPDATE backers SET refunded = true WHERE id = ${backer.id}`;
+    return NextResponse.json({ refunded: true, amount_wei: backer.amount_wei, tx_hash });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

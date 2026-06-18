@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -20,22 +19,19 @@ export async function POST(
       return NextResponse.json({ error: "Cannot cancel" }, { status: 400 });
     }
 
+    let tx_hash = "";
     if (isContractDeployed()) {
       const client = getGenLayerClient();
-      const tx = await client.writeContract({
+      tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "cancel_campaign",
         args: [campaign.contract_id],
       });
-      await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
-      });
     }
 
-    await sql`UPDATE campaigns SET status = 'cancelled' WHERE id = ${id}`;
+    await sql`UPDATE campaigns SET status = 'cancelled', tx_hash = ${tx_hash} WHERE id = ${id}`;
     const [updated] = await sql`SELECT * FROM campaigns WHERE id = ${id}`;
-    return NextResponse.json({ campaign: updated });
+    return NextResponse.json({ campaign: updated, tx_hash });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

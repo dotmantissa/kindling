@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -26,10 +25,11 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
+    let tx_hash = "";
 
     if (isContractDeployed()) {
       const client = getGenLayerClient();
-      const tx = await client.writeContract({
+      tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "submit_milestone",
         args: [
@@ -39,10 +39,6 @@ export async function POST(
           evidence_description,
           now,
         ],
-      });
-      await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
       });
     }
 
@@ -56,7 +52,7 @@ export async function POST(
     `;
 
     const [updated] = await sql`SELECT * FROM milestones WHERE id = ${mid}`;
-    return NextResponse.json({ milestone: updated });
+    return NextResponse.json({ milestone: updated, tx_hash });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

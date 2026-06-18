@@ -30,52 +30,61 @@ export async function POST() {
       milestone_count: string;
     }>;
 
+    let synced = 0;
     for (const c of chainCampaigns) {
       const [existing] = await sql`SELECT id FROM campaigns WHERE contract_id = ${c.id}`;
-      if (existing) {
-        await sql`
-          UPDATE campaigns SET
-            raised_wei = ${c.raised},
-            backer_count = ${parseInt(c.backer_count)},
-            status = ${c.status},
-            milestone_count = ${parseInt(c.milestone_count)}
-          WHERE contract_id = ${c.id}
-        `;
-      }
+      if (!existing) continue;
 
-      const milestones = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_milestones",
-        args: [c.id],
-      }) as Array<{
-        id: string;
-        status: string;
-        votes_approve: string;
-        votes_reject: string;
-        evidence_url: string;
-        evidence_description: string;
-        submitted_at: string;
-        resolved_at: string;
-      }>;
+      await sql`
+        UPDATE campaigns SET
+          raised_wei = ${c.raised},
+          backer_count = ${parseInt(c.backer_count)},
+          status = ${c.status},
+          milestone_count = ${parseInt(c.milestone_count)}
+        WHERE contract_id = ${c.id}
+      `;
+      synced++;
 
-      if (existing) {
-        for (const m of milestones) {
-          await sql`
-            UPDATE milestones SET
-              status = ${m.status},
-              votes_approve = ${m.votes_approve},
-              votes_reject = ${m.votes_reject},
-              evidence_url = ${m.evidence_url || null},
-              evidence_description = ${m.evidence_description || null},
-              submitted_at = ${m.submitted_at || null},
-              resolved_at = ${m.resolved_at || null}
-            WHERE campaign_id = ${existing.id} AND contract_milestone_id = ${m.id}
-          `;
+      // Sync milestones individually using get_milestone(campaign_id, milestone_id)
+      const milestoneCount = parseInt(c.milestone_count);
+      for (let i = 0; i < milestoneCount; i++) {
+        const mContractId = `m${i}`;
+        try {
+          const chainM = await client.readContract({
+            address: CONTRACT_ADDRESS,
+            functionName: "get_milestone",
+            args: [c.id, mContractId],
+          }) as {
+            id: string;
+            status: string;
+            votes_approve: string;
+            votes_reject: string;
+            evidence_url: string;
+            evidence_description: string;
+            submitted_at: string;
+            resolved_at: string;
+          };
+
+          if (chainM && chainM.id) {
+            await sql`
+              UPDATE milestones SET
+                status = ${chainM.status},
+                votes_approve = ${chainM.votes_approve},
+                votes_reject = ${chainM.votes_reject},
+                evidence_url = ${chainM.evidence_url || null},
+                evidence_description = ${chainM.evidence_description || null},
+                submitted_at = ${chainM.submitted_at || null},
+                resolved_at = ${chainM.resolved_at || null}
+              WHERE campaign_id = ${existing.id} AND contract_milestone_id = ${mContractId}
+            `;
+          }
+        } catch (_) {
+          // milestone may not exist on-chain yet if tx is still pending
         }
       }
     }
 
-    return NextResponse.json({ ok: true, synced: chainCampaigns.length });
+    return NextResponse.json({ ok: true, synced });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

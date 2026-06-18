@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
-import { TransactionStatus } from "genlayer-js/types";
 
 export async function POST(
   req: NextRequest,
@@ -22,42 +21,27 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
-    let newStatus = "voting";
+    let tx_hash = "";
 
     if (isContractDeployed()) {
       const client = getGenLayerClient();
-      const tx = await client.writeContract({
+      // AI verification tx — submit and return immediately. Verdict is determined on-chain.
+      tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "verify_milestone",
         args: [campaign.contract_id, milestone.contract_milestone_id, now],
       });
-      const receipt = await client.waitForTransactionReceipt({
-        hash: tx,
-        status: TransactionStatus.FINALIZED,
-      });
-
-      // Read back the milestone state from chain to get verdict
-      const chainMilestones = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_milestones",
-        args: [campaign.contract_id],
-      }) as Array<{ id: string; status: string }>;
-
-      const chainM = chainMilestones.find(
-        (m) => m.id === milestone.contract_milestone_id
-      );
-      if (chainM) newStatus = chainM.status;
     }
 
+    // Mark as "verifying" in DB; the sync endpoint will update to approved/voting once finalized
     await sql`
       UPDATE milestones
-      SET status = ${newStatus}, resolved_at = ${now}
+      SET status = 'verifying', resolved_at = ${now}
       WHERE id = ${mid}
     `;
 
-    // If a milestone is rejected and goes to voting, the campaign stays as-is
     const [updated] = await sql`SELECT * FROM milestones WHERE id = ${mid}`;
-    return NextResponse.json({ milestone: updated, verdict: newStatus });
+    return NextResponse.json({ milestone: updated, tx_hash, pending: true });
   } catch (e: unknown) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kindling
 
-## Getting Started
+Most crowdfunding campaigns end the same way. A creator gets the money, updates go quiet, and a year later you're leaving a comment that no one reads asking what happened to that thing you paid for.
 
-First, run the development server:
+Kindling is different because the money never actually goes to the creator until they can prove they deserve it.
+
+## What it does
+
+You back a project. Your funds go into escrow on the GenLayer network. The creator breaks their work into milestones — real, verifiable checkpoints — and has to hit each one to unlock each payment.
+
+When a milestone is submitted, the GenLayer AI validator network reads the evidence and decides whether it genuinely matches what was promised. Not vibes. Not self-reported updates. Actual verification against the stated deliverable.
+
+If the AI says yes, the funds release. If it says no, the milestone goes to a vote. Backers (weighted by how much they put in) decide whether the creator gets another shot or everyone gets their money back.
+
+Creators who ship build a track record on the chain. Creators who don't... well, they don't get to run another campaign.
+
+## Tech stack
+
+- **GenLayer Studio Network** — where the contracts live and the AI verification happens
+- **Next.js 15** — the frontend and API layer
+- **Privy** — wallet connections and embedded wallets for people who don't own a hardware wallet yet
+- **Neon Postgres** — off-chain storage for campaign metadata and fast querying
+- **Framer Motion** — the transitions that make it feel like someone actually cared
+- **Lucide React** — icons that aren't emoji
+
+## How to run it locally
+
+Clone the repo, then:
+
+```bash
+npm install
+```
+
+Copy the example env file and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+Initialize the database:
+
+```bash
+node scripts/db-init.mjs
+```
+
+Deploy the GenLayer contract:
+
+```bash
+genlayer deploy contracts/KindlingCampaign.py --network studionet
+```
+
+Put the contract address in your `.env.local` as `CONTRACT_ADDRESS`, then:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | What it is |
+|---|---|
+| `NEXT_PUBLIC_PRIVY_APP_ID` | Your Privy app ID |
+| `PRIVY_APP_SECRET` | Privy app secret (server only) |
+| `DATABASE_URL` | Neon Postgres connection string |
+| `NEXT_PUBLIC_GENLAYER_RPC` | GenLayer Studio RPC endpoint |
+| `NEXT_PUBLIC_CHAIN_ID` | Chain ID (61999 for studionet) |
+| `DEPLOYER_PRIVATE_KEY` | The wallet that deploys and calls contracts |
+| `DEPLOYER_KEY_PASSWORD` | Keystore password for the deployer wallet |
+| `CONTRACT_ADDRESS` | The deployed KindlingCampaign contract address |
 
-## Learn More
+## The contract
 
-To learn more about Next.js, take a look at the following resources:
+`contracts/KindlingCampaign.py` is a GenLayer intelligent contract written in Python. It handles:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Campaign creation with milestone definitions
+- Fund escrow tracking
+- Milestone submission and AI verification via `eq_principle_strict_eq`
+- Stake-weighted backer voting when AI rejects
+- Vote finalization and outcome determination
+- Refund claims when campaigns fail
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The AI verification uses `gl.get_webpage()` to fetch evidence from the submitted URL and `gl.exec_prompt()` to reason about whether it matches the stated deliverable. The `eq_principle_strict_eq` wrapper ensures all GenLayer validators reach the same verdict before the state changes.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT. Build on it.

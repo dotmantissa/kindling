@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Flame body -->
+  <path d="M24 4C24 4 14 16 14 26C14 31.523 18.477 36 24 36C29.523 36 34 31.523 34 26C34 20 28 14 28 14C28 14 29 20 26 22C26 22 28 16 24 4Z" fill="#003dad"/>
+  <!-- Inner flame highlight -->
+  <path d="M24 14C24 14 19 22 19 27C19 29.761 21.239 32 24 32C26.761 32 29 29.761 29 27C29 23 26 19 26 19C26 19 26 22 24 23C24 23 25.5 19 24 14Z" fill="#4d8aff" opacity="0.7"/>
+  <!-- Spark top -->
+  <circle cx="24" cy="7" r="2" fill="#6b9fff" opacity="0.5"/>
+  <!-- Base line (wick/platform) -->
+  <rect x="17" y="38" width="14" height="3" rx="1.5" fill="#003dad" opacity="0.4"/>
+  <rect x="20" y="41" width="8" height="2" rx="1" fill="#003dad" opacity="0.25"/>
+</svg>

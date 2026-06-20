@@ -123,14 +123,14 @@ export default function DashboardPage() {
           Your dashboard
         </h1>
         <p className="text-base mb-8" style={{ color: "var(--fg-muted)" }}>
-          Connect your wallet to see your campaigns and backing activity.
+          Sign in to see your campaigns and backing activity.
         </p>
         <button
           onClick={() => login()}
           className="px-6 py-3 rounded-xl font-bold text-sm"
           style={{ background: "var(--brand)", color: "#fff" }}
         >
-          Connect wallet
+          Sign in
         </button>
       </div>
     );

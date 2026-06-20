@@ -6,7 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Plus, LayoutDashboard, LogOut, User, Menu, X } from "lucide-react";
+import { Sun, Moon, Plus, LayoutDashboard, LogOut, Mail, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { ready, authenticated, user, login, logout } = usePrivy();
@@ -22,10 +22,10 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const walletAddress = user?.wallet?.address;
-  const shortAddr = walletAddress
-    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
-    : null;
+  const userEmail = user?.email?.address;
+  const displayName = userEmail
+    ? userEmail.split("@")[0]
+    : "Account";
 
   return (
     <header
@@ -90,16 +90,24 @@ export default function Navbar() {
                         border: "1px solid var(--border)",
                       }}
                     >
-                      <User size={14} />
-                      {shortAddr}
+                      <Mail size={14} />
+                      {displayName}
                     </button>
                     <div
-                      className="absolute right-0 top-full mt-2 w-40 rounded-xl overflow-hidden shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200"
+                      className="absolute right-0 top-full mt-2 w-44 rounded-xl overflow-hidden shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200"
                       style={{
                         background: "var(--bg-card)",
                         border: "1px solid var(--border)",
                       }}
                     >
+                      {userEmail && (
+                        <div
+                          className="px-4 py-3 text-xs truncate"
+                          style={{ color: "var(--fg-muted)", borderBottom: "1px solid var(--border)" }}
+                        >
+                          {userEmail}
+                        </div>
+                      )}
                       <Link
                         href="/dashboard"
                         className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[var(--bg-secondary)] transition-colors"
@@ -125,7 +133,7 @@ export default function Navbar() {
                   className="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-95"
                   style={{ background: "var(--brand)", color: "#fff" }}
                 >
-                  Connect wallet
+                  Sign in
                 </button>
               )}
             </>
@@ -194,13 +202,22 @@ export default function Navbar() {
                   Start a campaign
                 </Link>
               )}
+              {ready && authenticated && (
+                <button
+                  onClick={() => { logout(); setMenuOpen(false); }}
+                  className="text-sm font-medium py-2 text-left"
+                  style={{ color: "var(--fg-muted)" }}
+                >
+                  Sign out
+                </button>
+              )}
               {ready && !authenticated && (
                 <button
                   onClick={() => { login(); setMenuOpen(false); }}
                   className="px-4 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ background: "var(--brand)", color: "#fff" }}
                 >
-                  Connect wallet
+                  Sign in
                 </button>
               )}
             </div>

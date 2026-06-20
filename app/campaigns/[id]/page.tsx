@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Campaign, Milestone, Backer } from "@/lib/schema";
-import { formatGEN, pct, timeLeft, genToWei, weiToGen, shortAddress } from "@/lib/utils";
+import { formatGEN, pct, timeLeft, genToWei } from "@/lib/utils";
 import ProgressBar from "@/components/ui/ProgressBar";
 import StatusBadge from "@/components/ui/StatusBadge";
 
@@ -68,7 +68,7 @@ export default function CampaignPage({
   }, [id, walletAddress]);
 
   const handleBack = async () => {
-    if (!walletAddress) return toast.error("Connect your wallet first");
+    if (!walletAddress) return toast.error("Sign in to back this campaign");
     const gen = parseFloat(backAmount);
     if (!gen || gen <= 0) return toast.error("Enter a valid amount");
     setBacking(true);
@@ -326,10 +326,10 @@ export default function CampaignPage({
                     }}
                   >
                     <span
-                      className="text-sm font-mono"
+                      className="text-sm"
                       style={{ color: "var(--fg-muted)" }}
                     >
-                      {shortAddress(b.backer_address)}
+                      Backer #{i + 1}
                     </span>
                     <span
                       className="text-sm font-semibold"
@@ -440,7 +440,7 @@ export default function CampaignPage({
                 className="mt-4 text-xs text-center"
                 style={{ color: "var(--fg-muted)" }}
               >
-                Connect your wallet to back this campaign.
+                Sign in to back this campaign.
               </p>
             )}
 
@@ -482,12 +482,6 @@ export default function CampaignPage({
                 color: "var(--fg-muted)",
               }}
             >
-              <div className="flex items-center justify-between">
-                <span>Creator</span>
-                <span className="font-mono">
-                  {shortAddress(campaign.creator_address)}
-                </span>
-              </div>
               <div className="flex items-center justify-between">
                 <span>Deadline</span>
                 <span>{new Date(campaign.deadline).toLocaleDateString()}</span>

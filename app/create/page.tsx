@@ -63,14 +63,14 @@ export default function CreatePage() {
           Start a campaign
         </h1>
         <p className="text-base mb-8" style={{ color: "var(--fg-muted)" }}>
-          Connect your wallet to launch a campaign. It takes about 2 minutes.
+          Sign in with your email to launch a campaign. It takes about 2 minutes.
         </p>
         <button
           onClick={() => login()}
           className="px-6 py-3 rounded-xl font-bold text-sm"
           style={{ background: "var(--brand)", color: "#fff" }}
         >
-          Connect wallet
+          Sign in
         </button>
       </div>
     );

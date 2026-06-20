@@ -31,7 +31,7 @@ export async function POST(
       tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "claim_refund",
-        args: [campaign.contract_id, now],
+        args: [campaign.contract_id, now, backer_address],
       });
     }
 

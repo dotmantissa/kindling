@@ -1,4 +1,4 @@
-# v0.2.16
+# v0.3.0
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 import json
@@ -50,11 +50,19 @@ class KindlingCampaign(gl.Contract):
     campaign_backer_count: TreeMap[str, u256]
     votes_cast: TreeMap[str, bool]
     campaign_count: u256
+    relayer: Address
 
     def __init__(self):
         self.campaign_count = u256(0)
+        self.relayer = gl.message.sender_address
 
     # ─── helpers ──────────────────────────────────────────────────────────────
+
+    def _resolve_actor(self, actor: str) -> Address:
+        """Return Address(actor) when called by the relayer, otherwise the sender."""
+        if actor and gl.message.sender_address == self.relayer:
+            return Address(actor)
+        return gl.message.sender_address
 
     def _milestone_key(self, campaign_id: str, milestone_id: str) -> str:
         return f"{campaign_id}_{milestone_id}"
@@ -77,14 +85,15 @@ class KindlingCampaign(gl.Contract):
         image_url: str,
         category: str,
         created_at: str,
+        actor: str = "",
     ) -> str:
-        sender = gl.message.sender_address
+        creator = self._resolve_actor(actor)
         campaign_id = f"c{self.campaign_count}"
         self.campaign_count = u256(int(self.campaign_count) + 1)
 
         self.campaigns[campaign_id] = Campaign(
             id=campaign_id,
-            creator=sender,
+            creator=creator,
             title=title,
             description=description,
             goal=u256(int(goal_wei)),
@@ -110,11 +119,12 @@ class KindlingCampaign(gl.Contract):
         description: str,
         target_amount_wei: str,
         due_date: str,
+        actor: str = "",
     ) -> None:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
         c = self.campaigns[campaign_id]
-        if c.creator != gl.message.sender_address:
+        if c.creator != self._resolve_actor(actor):
             raise gl.vm.UserError("Only the creator can add milestones")
         if c.status != "active":
             raise gl.vm.UserError("Campaign is no longer editable")
@@ -143,6 +153,7 @@ class KindlingCampaign(gl.Contract):
         campaign_id: str,
         amount_wei: str,
         timestamp: str,
+        actor: str = "",
     ) -> None:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
@@ -154,8 +165,8 @@ class KindlingCampaign(gl.Contract):
         if amount <= 0:
             raise gl.vm.UserError("Amount must be positive")
 
-        sender = gl.message.sender_address
-        bk = self._backer_key(campaign_id, sender)
+        backer = self._resolve_actor(actor)
+        bk = self._backer_key(campaign_id, backer)
 
         if bk not in self.backer_amounts:
             self.backer_amounts[bk] = u256(0)
@@ -183,11 +194,12 @@ class KindlingCampaign(gl.Contract):
         evidence_url: str,
         evidence_description: str,
         submitted_at: str,
+        actor: str = "",
     ) -> None:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
         c = self.campaigns[campaign_id]
-        if c.creator != gl.message.sender_address:
+        if c.creator != self._resolve_actor(actor):
             raise gl.vm.UserError("Only the creator can submit milestones")
 
         key = self._milestone_key(campaign_id, milestone_id)
@@ -276,6 +288,7 @@ Answer with exactly one word: APPROVED or REJECTED"""
         campaign_id: str,
         milestone_id: str,
         approve: bool,
+        actor: str = "",
     ) -> None:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
@@ -287,12 +300,12 @@ Answer with exactly one word: APPROVED or REJECTED"""
         if m.status != "voting":
             raise gl.vm.UserError("Milestone is not in voting state")
 
-        sender = gl.message.sender_address
-        bk = self._backer_key(campaign_id, sender)
+        voter = self._resolve_actor(actor)
+        bk = self._backer_key(campaign_id, voter)
         if bk not in self.backer_amounts or int(self.backer_amounts[bk]) == 0:
             raise gl.vm.UserError("Only backers can vote")
 
-        vote_key = self._vote_key(campaign_id, milestone_id, sender)
+        vote_key = self._vote_key(campaign_id, milestone_id, voter)
         if vote_key in self.votes_cast and self.votes_cast[vote_key]:
             raise gl.vm.UserError("Already voted")
 
@@ -333,15 +346,15 @@ Answer with exactly one word: APPROVED or REJECTED"""
     # ─── refund / cancel ───────────────────────────────────────────────────────
 
     @gl.public.write
-    def claim_refund(self, campaign_id: str, timestamp: str) -> str:
+    def claim_refund(self, campaign_id: str, timestamp: str, actor: str = "") -> str:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
         c = self.campaigns[campaign_id]
         if c.status not in ("failed", "cancelled"):
             raise gl.vm.UserError("Campaign must be failed or cancelled")
 
-        sender = gl.message.sender_address
-        bk = self._backer_key(campaign_id, sender)
+        backer = self._resolve_actor(actor)
+        bk = self._backer_key(campaign_id, backer)
         if bk not in self.backer_amounts or int(self.backer_amounts[bk]) == 0:
             raise gl.vm.UserError("No backing to refund")
 
@@ -350,11 +363,11 @@ Answer with exactly one word: APPROVED or REJECTED"""
         return str(amount)
 
     @gl.public.write
-    def cancel_campaign(self, campaign_id: str) -> None:
+    def cancel_campaign(self, campaign_id: str, actor: str = "") -> None:
         if campaign_id not in self.campaigns:
             raise gl.vm.UserError("Campaign not found")
         c = self.campaigns[campaign_id]
-        if c.creator != gl.message.sender_address:
+        if c.creator != self._resolve_actor(actor):
             raise gl.vm.UserError("Only the creator can cancel")
         if c.status != "active":
             raise gl.vm.UserError("Can only cancel active campaigns")

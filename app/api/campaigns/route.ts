@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
           image_url || "",
           category || "general",
           now,
+          creator_address,
         ],
       });
       tx_hash = writeTx;
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
                 m.description,
                 m.target_amount_wei || "0",
                 m.due_date,
+                creator_address,
               ],
             });
             mTxHash = mTx;

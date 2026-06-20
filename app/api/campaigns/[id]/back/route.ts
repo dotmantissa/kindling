@@ -30,7 +30,7 @@ export async function POST(
       const tx = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "back_campaign",
-        args: [campaign.contract_id, amount_wei, now],
+        args: [campaign.contract_id, amount_wei, now, backer_address],
       });
       tx_hash = tx;
     }

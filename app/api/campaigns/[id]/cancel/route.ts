@@ -25,7 +25,7 @@ export async function POST(
       tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "cancel_campaign",
-        args: [campaign.contract_id],
+        args: [campaign.contract_id, creator_address],
       });
     }
 

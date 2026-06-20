@@ -38,6 +38,7 @@ export async function POST(
           evidence_url,
           evidence_description,
           now,
+          creator_address,
         ],
       });
     }

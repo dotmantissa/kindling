@@ -40,7 +40,7 @@ export async function POST(
       tx_hash = await client.writeContract({
         address: CONTRACT_ADDRESS,
         functionName: "cast_vote",
-        args: [campaign.contract_id, milestone.contract_milestone_id, approve],
+        args: [campaign.contract_id, milestone.contract_milestone_id, approve, voter_address],
       });
     }
 

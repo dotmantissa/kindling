@@ -12,9 +12,9 @@ import {
   ChevronLeft,
   Loader2,
   Flame,
-  Target,
-  Calendar,
   Info,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { CATEGORIES, genToWei } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export default function CreatePage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Tech");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const [goalGen, setGoalGen] = useState("");
   const [deadline, setDeadline] = useState("");
   const [milestones, setMilestones] = useState<MilestoneForm[]>([
@@ -46,6 +47,22 @@ export default function CreatePage() {
   ]);
 
   const walletAddress = user?.wallet?.address;
+
+  const handleImageUpload = async (file: File) => {
+    setImageUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await fetch("/api/upload", { method: "POST", body: form });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      setImageUrl(d.url);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Image upload failed");
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   if (!authenticated) {
     return (
@@ -252,13 +269,56 @@ export default function CreatePage() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Cover image URL (optional)">
-                  <input
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="input-field"
-                  />
+                <Field label="Cover image (optional)">
+                  <label
+                    className="flex flex-col items-center justify-center gap-2 w-full rounded-xl cursor-pointer transition-colors overflow-hidden"
+                    style={{
+                      border: "2px dashed var(--border)",
+                      background: "var(--bg)",
+                      minHeight: imageUrl ? "auto" : "80px",
+                    }}
+                  >
+                    {imageUrl ? (
+                      <div className="relative w-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt="Cover"
+                          className="w-full h-32 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); setImageUrl(""); }}
+                          className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center"
+                          style={{ background: "rgba(0,0,0,0.6)", color: "#fff" }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 py-4 px-3">
+                        {imageUploading ? (
+                          <Loader2 size={20} className="animate-spin" style={{ color: "var(--brand)" }} />
+                        ) : (
+                          <ImagePlus size={20} style={{ color: "var(--fg-muted)" }} />
+                        )}
+                        <span className="text-xs" style={{ color: "var(--fg-muted)" }}>
+                          {imageUploading ? "Uploading..." : "Click to upload"}
+                        </span>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      disabled={imageUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
                 </Field>
               </div>
             </StepWrap>

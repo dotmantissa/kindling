@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     }
     query += ` ORDER BY created_at DESC`;
 
-    const campaigns = await sql(query, params);
+    const campaigns = await sql.query(query, params);
     return NextResponse.json({ campaigns });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);

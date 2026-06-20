@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kindling — Back ideas that actually ship",
+  title: "Kindling | Back ideas that actually ship",
   description:
     "Crowdfunding with on-chain milestone accountability. Your money moves only when the work is done.",
   icons: {

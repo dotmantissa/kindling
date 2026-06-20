@@ -6,7 +6,7 @@ Kindling is different because the money never actually goes to the creator until
 
 ## What it does
 
-You back a project. Your funds go into escrow on the GenLayer network. The creator breaks their work into milestones — real, verifiable checkpoints — and has to hit each one to unlock each payment.
+You back a project. Your funds go into escrow on the GenLayer network. The creator breaks their work into milestones (real, verifiable checkpoints) and has to hit each one to unlock each payment.
 
 When a milestone is submitted, the GenLayer AI validator network reads the evidence and decides whether it genuinely matches what was promised. Not vibes. Not self-reported updates. Actual verification against the stated deliverable.
 
@@ -16,12 +16,12 @@ Creators who ship build a track record on the chain. Creators who don't... well,
 
 ## Tech stack
 
-- **GenLayer Studio Network** — where the contracts live and the AI verification happens
-- **Next.js 15** — the frontend and API layer
-- **Privy** — wallet connections and embedded wallets for people who don't own a hardware wallet yet
-- **Neon Postgres** — off-chain storage for campaign metadata and fast querying
-- **Framer Motion** — the transitions that make it feel like someone actually cared
-- **Lucide React** — icons that aren't emoji
+- **GenLayer Studio Network**: where the contracts live and the AI verification happens
+- **Next.js 15**: the frontend and API layer
+- **Privy**: wallet connections and embedded wallets for people who don't own a hardware wallet yet
+- **Neon Postgres**: off-chain storage for campaign metadata and fast querying
+- **Framer Motion**: the transitions that make it feel like someone actually cared
+- **Lucide React**: icons that aren't emoji
 
 ## How to run it locally
 
@@ -76,12 +76,12 @@ Open `http://localhost:3000`.
 
 - Campaign creation with milestone definitions
 - Fund escrow tracking
-- Milestone submission and AI verification via `eq_principle_strict_eq`
-- Stake-weighted backer voting when AI rejects
+- Milestone submission and AI verification
+- Stake weighted backer voting when AI rejects
 - Vote finalization and outcome determination
 - Refund claims when campaigns fail
 
-The AI verification uses `gl.get_webpage()` to fetch evidence from the submitted URL and `gl.exec_prompt()` to reason about whether it matches the stated deliverable. The `eq_principle_strict_eq` wrapper ensures all GenLayer validators reach the same verdict before the state changes.
+The AI verification uses `gl.nondet.web.get()` to fetch evidence from the submitted URL and `gl.nondet.exec_prompt()` to reason about whether it matches the stated deliverable. The `eq_principle_prompt_comparative` wrapper ensures all GenLayer validators reach the same verdict before the state changes.
 
 ## License
 

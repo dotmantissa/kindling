@@ -124,8 +124,8 @@ export default function CampaignPage({
 
       const labels: Record<string, string> = {
         verify: "Verification triggered",
-        "vote-approve": "Vote cast — you approved",
-        "vote-reject": "Vote cast — you rejected",
+        "vote-approve": "Vote cast. You approved.",
+        "vote-reject": "Vote cast. You rejected.",
         finalize: "Vote finalized",
       };
       toast.success(labels[action]);

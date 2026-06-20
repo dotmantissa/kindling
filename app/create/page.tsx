@@ -308,7 +308,7 @@ export default function CreatePage() {
               <StepTitle>Break it into milestones</StepTitle>
               <StepDesc>
                 Each milestone is a checkpoint you have to prove. Add as many as makes
-                sense — the AI will verify each one.
+                sense. The AI will verify each one.
               </StepDesc>
               <div className="space-y-5">
                 {milestones.map((m, i) => (
@@ -439,7 +439,7 @@ export default function CreatePage() {
                           {m.title}
                         </p>
                         <p className="text-xs" style={{ color: "var(--fg-muted)" }}>
-                          Due {m.due_date ? new Date(m.due_date).toLocaleDateString() : "—"}
+                          Due {m.due_date ? new Date(m.due_date).toLocaleDateString() : "not set"}
                         </p>
                       </div>
                     </div>

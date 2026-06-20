@@ -12,7 +12,7 @@ const STEPS = [
   {
     icon: Flame,
     title: "A creator sparks an idea",
-    body: "They lay out the plan, set a funding goal, and break the whole thing into milestones. Not one big promise — a series of checkpoints they actually have to hit.",
+    body: "They lay out the plan, set a funding goal, and break the whole thing into milestones. Not one big promise. A series of checkpoints they actually have to hit.",
   },
   {
     icon: ShieldCheck,
@@ -22,12 +22,12 @@ const STEPS = [
   {
     icon: Vote,
     title: "The AI checks the evidence",
-    body: "When a milestone is submitted, an AI verifier reviews the proof — a prototype video, a shipping receipt, whatever was promised. If it checks out, the funds release.",
+    body: "When a milestone is submitted, an AI verifier reviews the proof: a prototype video, a shipping receipt, whatever was promised. If it checks out, the funds release.",
   },
   {
     icon: Star,
     title: "You vote when it doesn't",
-    body: "If the AI isn't convinced, it goes to you — the backers. Stake-weighted voting determines whether the creator earns the funds or everyone gets their money back.",
+    body: "If the AI isn't convinced, it goes to you, the backers. Stake weighted voting determines whether the creator earns the funds or everyone gets their money back.",
   },
 ];
 
@@ -120,8 +120,8 @@ export default function HomePage() {
           >
             {[
               { val: "100%", label: "On-chain accountability" },
-              { val: "AI-verified", label: "Milestone proofs" },
-              { val: "Stake-weighted", label: "Backer voting" },
+              { val: "AI verified", label: "Milestone proofs" },
+              { val: "Stake weighted", label: "Backer voting" },
             ].map(({ val, label }) => (
               <div key={label} className="text-center">
                 <div

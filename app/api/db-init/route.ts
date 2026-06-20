@@ -61,7 +61,18 @@ export async function POST() {
     await sql`CREATE INDEX IF NOT EXISTS idx_backers_campaign ON backers(campaign_id)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_backers_address ON backers(backer_address)`;
 
-    return NextResponse.json({ ok: true, message: "Database initialized" });
+    // Migrations: add columns that may be missing from older table versions
+    await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS contract_id TEXT NOT NULL DEFAULT ''`;
+    await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS milestone_count INTEGER NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS tx_hash TEXT`;
+    await sql`ALTER TABLE milestones ADD COLUMN IF NOT EXISTS contract_milestone_id TEXT NOT NULL DEFAULT ''`;
+    await sql`ALTER TABLE milestones ADD COLUMN IF NOT EXISTS votes_approve TEXT NOT NULL DEFAULT '0'`;
+    await sql`ALTER TABLE milestones ADD COLUMN IF NOT EXISTS votes_reject TEXT NOT NULL DEFAULT '0'`;
+    await sql`ALTER TABLE milestones ADD COLUMN IF NOT EXISTS order_index INTEGER NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE backers ADD COLUMN IF NOT EXISTS tx_hash TEXT`;
+    await sql`ALTER TABLE backers ADD COLUMN IF NOT EXISTS refunded BOOLEAN NOT NULL DEFAULT FALSE`;
+
+    return NextResponse.json({ ok: true, message: "Database initialized and migrated" });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

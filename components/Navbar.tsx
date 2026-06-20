@@ -13,6 +13,7 @@ export default function Navbar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -21,6 +22,17 @@ export default function Navbar() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const close = (e: MouseEvent) => {
+      if (!(e.target as Element).closest("[data-account-menu]")) {
+        setAccountOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [accountOpen]);
 
   const userEmail = user?.email?.address;
   const displayName = userEmail
@@ -81,8 +93,9 @@ export default function Navbar() {
                     <Plus size={15} />
                     Start a campaign
                   </Link>
-                  <div className="relative group">
+                  <div className="relative" data-account-menu>
                     <button
+                      onClick={() => setAccountOpen((o) => !o)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:opacity-80"
                       style={{
                         background: "var(--bg-secondary)",
@@ -93,38 +106,47 @@ export default function Navbar() {
                       <Mail size={14} />
                       {displayName}
                     </button>
-                    <div
-                      className="absolute right-0 top-full mt-2 w-44 rounded-xl overflow-hidden shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-200"
-                      style={{
-                        background: "var(--bg-card)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      {userEmail && (
-                        <div
-                          className="px-4 py-3 text-xs truncate"
-                          style={{ color: "var(--fg-muted)", borderBottom: "1px solid var(--border)" }}
+                    <AnimatePresence>
+                      {accountOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full mt-2 w-44 rounded-xl overflow-hidden shadow-lg z-50"
+                          style={{
+                            background: "var(--bg-card)",
+                            border: "1px solid var(--border)",
+                          }}
                         >
-                          {userEmail}
-                        </div>
+                          {userEmail && (
+                            <div
+                              className="px-4 py-3 text-xs truncate"
+                              style={{ color: "var(--fg-muted)", borderBottom: "1px solid var(--border)" }}
+                            >
+                              {userEmail}
+                            </div>
+                          )}
+                          <Link
+                            href="/dashboard"
+                            onClick={() => setAccountOpen(false)}
+                            className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[var(--bg-secondary)] transition-colors"
+                            style={{ color: "var(--fg)" }}
+                          >
+                            <LayoutDashboard size={14} />
+                            Dashboard
+                          </Link>
+                          <button
+                            onClick={() => { logout(); setAccountOpen(false); }}
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-[var(--bg-secondary)] transition-colors"
+                            style={{ color: "var(--fg-muted)" }}
+                          >
+                            <LogOut size={14} />
+                            Sign out
+                          </button>
+                        </motion.div>
                       )}
-                      <Link
-                        href="/dashboard"
-                        className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-[var(--bg-secondary)] transition-colors"
-                        style={{ color: "var(--fg)" }}
-                      >
-                        <LayoutDashboard size={14} />
-                        Dashboard
-                      </Link>
-                      <button
-                        onClick={() => logout()}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-[var(--bg-secondary)] transition-colors"
-                        style={{ color: "var(--fg-muted)" }}
-                      >
-                        <LogOut size={14} />
-                        Sign out
-                      </button>
-                    </div>
+                    </AnimatePresence>
                   </div>
                 </div>
               ) : (

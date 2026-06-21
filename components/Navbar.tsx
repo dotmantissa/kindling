@@ -2,19 +2,35 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets, useConnectWallet } from "@privy-io/react-auth";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Plus, LayoutDashboard, LogOut, Mail, Menu, X } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Plus,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Menu,
+  X,
+  Copy,
+  Check,
+  Wallet,
+  ExternalLink,
+} from "lucide-react";
 
 export default function Navbar() {
   const { ready, authenticated, user, login, logout } = usePrivy();
+  const { wallets } = useWallets();
+  const { connectWallet } = useConnectWallet();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -34,10 +50,21 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", close);
   }, [accountOpen]);
 
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+  const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
+  const displayWallet = embeddedWallet || externalWallet;
+
   const userEmail = user?.email?.address;
-  const displayName = userEmail
-    ? userEmail.split("@")[0]
-    : "Account";
+  const displayName = userEmail ? userEmail.split("@")[0] : "Account";
+
+  const copyAddress = useCallback(async (addr: string) => {
+    await navigator.clipboard.writeText(addr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
+
+  const shortAddr = (addr: string) =>
+    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   return (
     <header
@@ -113,12 +140,13 @@ export default function Navbar() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute right-0 top-full mt-2 w-44 rounded-xl overflow-hidden shadow-lg z-50"
+                          className="absolute right-0 top-full mt-2 w-60 rounded-xl overflow-hidden shadow-lg z-50"
                           style={{
                             background: "var(--bg-card)",
                             border: "1px solid var(--border)",
                           }}
                         >
+                          {/* Email */}
                           {userEmail && (
                             <div
                               className="px-4 py-3 text-xs truncate"
@@ -127,6 +155,75 @@ export default function Navbar() {
                               {userEmail}
                             </div>
                           )}
+
+                          {/* Wallet section */}
+                          <div
+                            className="px-4 py-3 space-y-2"
+                            style={{ borderBottom: "1px solid var(--border)" }}
+                          >
+                            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-muted)" }}>
+                              {externalWallet ? "External wallet" : "Your wallet"}
+                            </p>
+                            {displayWallet ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                                  {shortAddr(displayWallet.address)}
+                                </span>
+                                <button
+                                  onClick={() => copyAddress(displayWallet.address)}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
+                                  style={{ color: "var(--brand)" }}
+                                  title="Copy address"
+                                >
+                                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                                  {copied ? "Copied" : "Copy"}
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-xs" style={{ color: "var(--fg-muted)" }}>Loading...</p>
+                            )}
+
+                            {/* Embedded wallet (always show if external is connected) */}
+                            {externalWallet && embeddedWallet && (
+                              <div className="pt-1">
+                                <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-muted)" }}>
+                                  Internal wallet
+                                </p>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                                    {shortAddr(embeddedWallet.address)}
+                                  </span>
+                                  <button
+                                    onClick={() => copyAddress(embeddedWallet.address)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
+                                    style={{ color: "var(--brand)" }}
+                                    title="Copy address"
+                                  >
+                                    <Copy size={11} />
+                                    Copy
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Connect / disconnect external wallet */}
+                            {!externalWallet ? (
+                              <button
+                                onClick={() => { connectWallet(); setAccountOpen(false); }}
+                                className="flex items-center gap-1.5 text-xs transition-colors hover:opacity-80 mt-1"
+                                style={{ color: "var(--brand)" }}
+                              >
+                                <ExternalLink size={11} />
+                                Connect external wallet
+                              </button>
+                            ) : (
+                              <p className="text-xs mt-1" style={{ color: "var(--fg-muted)" }}>
+                                Signing with external wallet
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Nav links */}
                           <Link
                             href="/dashboard"
                             onClick={() => setAccountOpen(false)}
@@ -213,6 +310,42 @@ export default function Navbar() {
                   Dashboard
                 </Link>
               )}
+
+              {/* Mobile wallet display */}
+              {authenticated && displayWallet && (
+                <div
+                  className="py-3 space-y-2 rounded-xl px-3"
+                  style={{ background: "var(--bg-secondary)" }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-muted)" }}>
+                    {externalWallet ? "External wallet" : "Your wallet"}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                      {shortAddr(displayWallet.address)}
+                    </span>
+                    <button
+                      onClick={() => copyAddress(displayWallet.address)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs"
+                      style={{ color: "var(--brand)" }}
+                    >
+                      {copied ? <Check size={11} /> : <Copy size={11} />}
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  {!externalWallet && (
+                    <button
+                      onClick={() => { connectWallet(); setMenuOpen(false); }}
+                      className="flex items-center gap-1.5 text-xs"
+                      style={{ color: "var(--brand)" }}
+                    >
+                      <Wallet size={11} />
+                      Connect external wallet
+                    </button>
+                  )}
+                </div>
+              )}
+
               {ready && authenticated && (
                 <Link
                   href="/create"

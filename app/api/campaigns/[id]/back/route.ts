@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import sql from "@/lib/db";
-import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
 
 export async function POST(
   req: NextRequest,
@@ -8,7 +7,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { backer_address, amount_wei } = await req.json();
+    const { backer_address, amount_wei, tx_hash = "" } = await req.json();
 
     if (!backer_address || !amount_wei) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -23,17 +22,6 @@ export async function POST(
     }
 
     const now = new Date().toISOString();
-    let tx_hash = "";
-
-    if (isContractDeployed()) {
-      const client = getGenLayerClient();
-      const tx = await client.writeContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "back_campaign",
-        args: [campaign.contract_id, amount_wei, now, backer_address],
-      });
-      tx_hash = tx;
-    }
 
     const newRaisedWei = (BigInt(campaign.raised_wei) + BigInt(amount_wei)).toString();
     const newStatus = BigInt(newRaisedWei) >= BigInt(campaign.goal_wei) ? "funded" : campaign.status;

@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
+import { useGenLayerClient } from "@/lib/useGenLayerClient";
 import { toast } from "sonner";
 import {
   Users,
@@ -29,7 +30,8 @@ export default function CampaignPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { authenticated, user } = usePrivy();
+  const { authenticated } = usePrivy();
+  const { getClient, signingAddress } = useGenLayerClient();
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -41,7 +43,7 @@ export default function CampaignPage({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const walletAddress = user?.wallet?.address;
+  const walletAddress = signingAddress;
   const isCreator =
     campaign &&
     walletAddress &&
@@ -67,19 +69,26 @@ export default function CampaignPage({
       .then((d) => setMyBacking(d.backer || null));
   }, [id, walletAddress]);
 
+  const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
+
   const handleBack = async () => {
     if (!walletAddress) return toast.error("Sign in to back this campaign");
     const gen = parseFloat(backAmount);
     if (!gen || gen <= 0) return toast.error("Enter a valid amount");
     setBacking(true);
     try {
+      const amount_wei = genToWei(gen);
+      const now = new Date().toISOString();
+      const client = await getClient();
+      const tx_hash = await client.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "back_campaign",
+        args: [campaign!.contract_id, amount_wei, now],
+      });
       const r = await fetch(`/api/campaigns/${id}/back`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          backer_address: walletAddress,
-          amount_wei: genToWei(gen),
-        }),
+        body: JSON.stringify({ backer_address: walletAddress, amount_wei, tx_hash }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
@@ -108,8 +117,15 @@ export default function CampaignPage({
       if (action === "verify") {
         url += "/verify";
       } else if (action === "vote-approve" || action === "vote-reject") {
+        const approve = action === "vote-approve";
+        const client = await getClient();
+        const tx_hash = await client.writeContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "cast_vote",
+          args: [campaign!.contract_id, m.contract_milestone_id, approve],
+        });
         url += "/vote";
-        body = { voter_address: walletAddress, approve: action === "vote-approve" };
+        body = { voter_address: walletAddress, approve, tx_hash };
       } else if (action === "finalize") {
         url += "/finalize";
       }
@@ -141,10 +157,17 @@ export default function CampaignPage({
     if (!walletAddress) return;
     setActionLoading("refund");
     try {
+      const now = new Date().toISOString();
+      const client = await getClient();
+      const tx_hash = await client.writeContract({
+        address: CONTRACT_ADDRESS,
+        functionName: "claim_refund",
+        args: [campaign!.contract_id, now],
+      });
       const r = await fetch(`/api/campaigns/${id}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ backer_address: walletAddress }),
+        body: JSON.stringify({ backer_address: walletAddress, tx_hash }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);

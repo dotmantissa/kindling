@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
 import { useGenLayerClient } from "@/lib/useGenLayerClient";
@@ -68,6 +68,32 @@ export default function CampaignPage({
       .then((r) => r.json())
       .then((d) => setMyBacking(d.backer || null));
   }, [id, walletAddress]);
+
+  // Auto-poll sync when any milestone is pending AI consensus
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    const hasVerifying = milestones.some((m) => m.status === "verifying");
+    if (!hasVerifying) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+    if (pollRef.current) return; // already polling
+    pollRef.current = setInterval(async () => {
+      try {
+        await fetch("/api/sync", { method: "POST" });
+        await load();
+      } catch (_) {}
+    }, 8000);
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [milestones]);
 
   const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
 
@@ -139,7 +165,7 @@ export default function CampaignPage({
       if (!r.ok) throw new Error(d.error);
 
       const labels: Record<string, string> = {
-        verify: "Verification triggered",
+        verify: "Verification triggered — checking every 8s for the AI verdict",
         "vote-approve": "Vote cast. You approved.",
         "vote-reject": "Vote cast. You rejected.",
         finalize: "Vote finalized",
@@ -551,6 +577,7 @@ function MilestoneRow({
   const statusIcon = {
     pending: <AlertCircle size={16} style={{ color: "#a16207" }} />,
     submitted: <AlertCircle size={16} style={{ color: "#1d4ed8" }} />,
+    verifying: <Loader2 size={16} className="animate-spin" style={{ color: "#6d28d9" }} />,
     approved: <CheckCircle size={16} style={{ color: "#15803d" }} />,
     rejected: <XCircle size={16} style={{ color: "#dc2626" }} />,
     voting: <Users size={16} style={{ color: "#c2410c" }} />,
@@ -655,6 +682,17 @@ function MilestoneRow({
                       {milestone.evidence_description}
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Verifying notice */}
+              {milestone.status === "verifying" && (
+                <div
+                  className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm"
+                  style={{ background: "#ede9fe", color: "#6d28d9" }}
+                >
+                  <Loader2 size={14} className="animate-spin shrink-0" />
+                  AI verification in progress — this page checks automatically every 8 seconds.
                 </div>
               )}
 

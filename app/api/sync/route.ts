@@ -66,9 +66,21 @@ export async function POST() {
           };
 
           if (chainM && chainM.id) {
+            // If the chain still shows "submitted" but our DB already marked the
+            // milestone as "verifying" (AI tx pending), don't roll it back — keep
+            // "verifying" until the AI consensus resolves to a final state.
+            const [existingM] = await sql`
+              SELECT status FROM milestones
+              WHERE campaign_id = ${existing.id} AND contract_milestone_id = ${mContractId}
+            `;
+            const resolvedStatus =
+              chainM.status === "submitted" && existingM?.status === "verifying"
+                ? "verifying"
+                : chainM.status;
+
             await sql`
               UPDATE milestones SET
-                status = ${chainM.status},
+                status = ${resolvedStatus},
                 votes_approve = ${chainM.votes_approve},
                 votes_reject = ${chainM.votes_reject},
                 evidence_url = ${chainM.evidence_url || null},

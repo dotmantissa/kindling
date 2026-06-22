@@ -52,7 +52,13 @@ export default function Navbar() {
 
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
-  const displayWallet = embeddedWallet || externalWallet;
+
+  // user.linkedAccounts has the embedded address immediately after auth,
+  // before the wallets[] array (which needs the wallet to be signing-ready) catches up.
+  const linkedEmbeddedAddr = (user?.linkedAccounts?.find(
+    (a: any) => a.type === "wallet" && a.connectorType === "embedded"
+  ) as any)?.address as string | undefined;
+  const embeddedAddress = embeddedWallet?.address ?? linkedEmbeddedAddr;
 
   const userEmail = user?.email?.address;
   const displayName = userEmail ? userEmail.split("@")[0] : "Account";
@@ -164,13 +170,28 @@ export default function Navbar() {
                             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--fg-muted)" }}>
                               {externalWallet ? "External wallet" : "Your wallet"}
                             </p>
-                            {displayWallet ? (
+                            {externalWallet ? (
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
-                                  {shortAddr(displayWallet.address)}
+                                  {shortAddr(externalWallet.address)}
                                 </span>
                                 <button
-                                  onClick={() => copyAddress(displayWallet.address)}
+                                  onClick={() => copyAddress(externalWallet.address)}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
+                                  style={{ color: "var(--brand)" }}
+                                  title="Copy address"
+                                >
+                                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                                  {copied ? "Copied" : "Copy"}
+                                </button>
+                              </div>
+                            ) : embeddedAddress ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                                  {shortAddr(embeddedAddress)}
+                                </span>
+                                <button
+                                  onClick={() => copyAddress(embeddedAddress)}
                                   className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
                                   style={{ color: "var(--brand)" }}
                                   title="Copy address"
@@ -180,21 +201,21 @@ export default function Navbar() {
                                 </button>
                               </div>
                             ) : (
-                              <p className="text-xs" style={{ color: "var(--fg-muted)" }}>Loading...</p>
+                              <p className="text-xs" style={{ color: "var(--fg-muted)" }}>Setting up wallet…</p>
                             )}
 
-                            {/* Embedded wallet (always show if external is connected) */}
-                            {externalWallet && embeddedWallet && (
+                            {/* Internal wallet (always show if external is connected) */}
+                            {externalWallet && embeddedAddress && (
                               <div className="pt-1">
                                 <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--fg-muted)" }}>
                                   Internal wallet
                                 </p>
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
-                                    {shortAddr(embeddedWallet.address)}
+                                    {shortAddr(embeddedAddress)}
                                   </span>
                                   <button
-                                    onClick={() => copyAddress(embeddedWallet.address)}
+                                    onClick={() => copyAddress(embeddedAddress)}
                                     className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
                                     style={{ color: "var(--brand)" }}
                                     title="Copy address"
@@ -312,7 +333,7 @@ export default function Navbar() {
               )}
 
               {/* Mobile wallet display */}
-              {authenticated && displayWallet && (
+              {authenticated && (embeddedAddress || externalWallet) && (
                 <div
                   className="py-3 space-y-2 rounded-xl px-3"
                   style={{ background: "var(--bg-secondary)" }}
@@ -322,10 +343,10 @@ export default function Navbar() {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
-                      {shortAddr(displayWallet.address)}
+                      {shortAddr((externalWallet?.address ?? embeddedAddress)!)}
                     </span>
                     <button
-                      onClick={() => copyAddress(displayWallet.address)}
+                      onClick={() => copyAddress((externalWallet?.address ?? embeddedAddress)!)}
                       className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs"
                       style={{ color: "var(--brand)" }}
                     >
@@ -333,6 +354,24 @@ export default function Navbar() {
                       {copied ? "Copied" : "Copy"}
                     </button>
                   </div>
+                  {externalWallet && embeddedAddress && (
+                    <div className="pt-1 border-t" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-xs font-semibold uppercase tracking-wider mb-1 pt-1" style={{ color: "var(--fg-muted)" }}>Internal wallet</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                          {shortAddr(embeddedAddress)}
+                        </span>
+                        <button
+                          onClick={() => copyAddress(embeddedAddress)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs"
+                          style={{ color: "var(--brand)" }}
+                        >
+                          <Copy size={11} />
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {!externalWallet && (
                     <button
                       onClick={() => { connectWallet(); setMenuOpen(false); }}

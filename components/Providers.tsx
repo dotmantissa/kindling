@@ -29,7 +29,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             logo: "/logo.svg",
           },
           embeddedWallets: {
-            createOnLogin: "all-users",
+            ethereum: {
+              createOnLogin: "all-users",
+            },
           },
         }}
       >

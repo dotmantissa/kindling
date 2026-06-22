@@ -5,11 +5,12 @@ import { createClient, chains } from "genlayer-js";
 
 export function useGenLayerClient() {
   const { user } = usePrivy();
-  const { wallets } = useWallets();
+  const { wallets, ready: walletsReady } = useWallets();
 
-  // Prefer external wallet (user explicitly connected); fall back to embedded
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
-  const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
+  // Prefer external wallet (user explicitly connected); fall back to embedded.
+  // getEmbeddedConnectedWallet is Privy's own helper: walletClientType==="privy" && connectorType==="embedded" && !imported
+  const embeddedWallet = walletsReady ? wallets.find((w) => w.walletClientType === "privy" && w.connectorType === "embedded" && !w.imported) : undefined;
+  const externalWallet = walletsReady ? wallets.find((w) => w.walletClientType !== "privy") : undefined;
   const signingWallet = externalWallet || embeddedWallet;
 
   // user.wallet is Privy's embedded wallet and is set immediately after auth,

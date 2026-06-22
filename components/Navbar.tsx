@@ -50,7 +50,7 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", close);
   }, [accountOpen]);
 
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
+  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy" && w.connectorType === "embedded" && !w.imported);
   const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
 
   // user.wallet is Privy's embedded wallet — set immediately after auth

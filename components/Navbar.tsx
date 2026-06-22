@@ -4,7 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePrivy, useWallets, useConnectWallet } from "@privy-io/react-auth";
 import { useTheme } from "next-themes";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { formatGEN } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sun,
@@ -31,6 +32,8 @@ export default function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [balance, setBalance] = useState<string | null>(null);
+  const balanceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -50,12 +53,46 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", close);
   }, [accountOpen]);
 
-  const embeddedWallet = wallets.find((w) => w.walletClientType === "privy" && w.connectorType === "embedded" && !w.imported);
+  const embeddedWallet = wallets.find(
+    (w) => w.walletClientType === "privy" && w.connectorType === "embedded" && !w.imported
+  );
   const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
 
   // user.wallet is Privy's embedded wallet — set immediately after auth
   // before useWallets() finishes its async initialization.
   const embeddedAddress = embeddedWallet?.address ?? user?.wallet?.address;
+
+  // The address whose balance matters is the one being used for signing.
+  const signingAddress = externalWallet?.address ?? embeddedAddress;
+
+  const fetchBalance = useCallback(async (address: string) => {
+    try {
+      const res = await fetch("https://studio.genlayer.com/api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "eth_getBalance",
+          params: [address, "latest"],
+          id: 1,
+        }),
+      });
+      const { result } = await res.json();
+      if (result) setBalance(formatGEN(BigInt(result)));
+    } catch {
+      // network hiccup — keep showing last known balance
+    }
+  }, []);
+
+  useEffect(() => {
+    if (balanceTimerRef.current) clearInterval(balanceTimerRef.current);
+    if (!signingAddress) { setBalance(null); return; }
+    fetchBalance(signingAddress);
+    balanceTimerRef.current = setInterval(() => fetchBalance(signingAddress), 30_000);
+    return () => {
+      if (balanceTimerRef.current) clearInterval(balanceTimerRef.current);
+    };
+  }, [signingAddress, fetchBalance]);
 
   const userEmail = user?.email?.address;
   const displayName = userEmail ? userEmail.split("@")[0] : "Account";
@@ -168,34 +205,48 @@ export default function Navbar() {
                               {externalWallet ? "External wallet" : "Your wallet"}
                             </p>
                             {externalWallet ? (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
-                                  {shortAddr(externalWallet.address)}
-                                </span>
-                                <button
-                                  onClick={() => copyAddress(externalWallet.address)}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
-                                  style={{ color: "var(--brand)" }}
-                                  title="Copy address"
-                                >
-                                  {copied ? <Check size={11} /> : <Copy size={11} />}
-                                  {copied ? "Copied" : "Copy"}
-                                </button>
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                                    {shortAddr(externalWallet.address)}
+                                  </span>
+                                  <button
+                                    onClick={() => copyAddress(externalWallet.address)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
+                                    style={{ color: "var(--brand)" }}
+                                    title="Copy address"
+                                  >
+                                    {copied ? <Check size={11} /> : <Copy size={11} />}
+                                    {copied ? "Copied" : "Copy"}
+                                  </button>
+                                </div>
+                                {balance && (
+                                  <p className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+                                    {balance}
+                                  </p>
+                                )}
                               </div>
                             ) : embeddedAddress ? (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
-                                  {shortAddr(embeddedAddress)}
-                                </span>
-                                <button
-                                  onClick={() => copyAddress(embeddedAddress)}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
-                                  style={{ color: "var(--brand)" }}
-                                  title="Copy address"
-                                >
-                                  {copied ? <Check size={11} /> : <Copy size={11} />}
-                                  {copied ? "Copied" : "Copy"}
-                                </button>
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-mono" style={{ color: "var(--fg)" }}>
+                                    {shortAddr(embeddedAddress)}
+                                  </span>
+                                  <button
+                                    onClick={() => copyAddress(embeddedAddress)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--bg-secondary)]"
+                                    style={{ color: "var(--brand)" }}
+                                    title="Copy address"
+                                  >
+                                    {copied ? <Check size={11} /> : <Copy size={11} />}
+                                    {copied ? "Copied" : "Copy"}
+                                  </button>
+                                </div>
+                                {balance && (
+                                  <p className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+                                    {balance}
+                                  </p>
+                                )}
                               </div>
                             ) : (
                               <p className="text-xs" style={{ color: "var(--fg-muted)" }}>Setting up wallet…</p>
@@ -351,6 +402,11 @@ export default function Navbar() {
                       {copied ? "Copied" : "Copy"}
                     </button>
                   </div>
+                  {balance && (
+                    <p className="text-xs font-semibold" style={{ color: "var(--fg)" }}>
+                      {balance}
+                    </p>
+                  )}
                   {externalWallet && embeddedAddress && (
                     <div className="pt-1 border-t" style={{ borderColor: "var(--border)" }}>
                       <p className="text-xs font-semibold uppercase tracking-wider mb-1 pt-1" style={{ color: "var(--fg-muted)" }}>Internal wallet</p>

@@ -1,15 +1,21 @@
 "use client";
 
-import { useWallets } from "@privy-io/react-auth";
+import { useWallets, usePrivy } from "@privy-io/react-auth";
 import { createClient, chains } from "genlayer-js";
 
 export function useGenLayerClient() {
+  const { user } = usePrivy();
   const { wallets } = useWallets();
 
   // Prefer external wallet (user explicitly connected); fall back to embedded
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
   const signingWallet = externalWallet || embeddedWallet;
+
+  // user.wallet is Privy's embedded wallet and is set immediately after auth,
+  // before useWallets() finishes its async initialization.
+  const embeddedAddress = (embeddedWallet?.address ?? user?.wallet?.address) as `0x${string}` | undefined;
+  const signingAddress = (signingWallet?.address ?? (externalWallet ? undefined : embeddedAddress)) as `0x${string}` | undefined;
 
   const getClient = async () => {
     if (!signingWallet) throw new Error("No wallet connected");
@@ -33,8 +39,8 @@ export function useGenLayerClient() {
 
   return {
     getClient,
-    embeddedAddress: embeddedWallet?.address as `0x${string}` | undefined,
-    signingAddress: signingWallet?.address as `0x${string}` | undefined,
+    embeddedAddress,
+    signingAddress,
     hasExternalWallet: !!externalWallet,
   };
 }

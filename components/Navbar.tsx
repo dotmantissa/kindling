@@ -53,12 +53,9 @@ export default function Navbar() {
   const embeddedWallet = wallets.find((w) => w.walletClientType === "privy");
   const externalWallet = wallets.find((w) => w.walletClientType !== "privy");
 
-  // user.linkedAccounts has the embedded address immediately after auth,
-  // before the wallets[] array (which needs the wallet to be signing-ready) catches up.
-  const linkedEmbeddedAddr = (user?.linkedAccounts?.find(
-    (a: any) => a.type === "wallet" && a.connectorType === "embedded"
-  ) as any)?.address as string | undefined;
-  const embeddedAddress = embeddedWallet?.address ?? linkedEmbeddedAddr;
+  // user.wallet is Privy's embedded wallet — set immediately after auth
+  // before useWallets() finishes its async initialization.
+  const embeddedAddress = embeddedWallet?.address ?? user?.wallet?.address;
 
   const userEmail = user?.email?.address;
   const displayName = userEmail ? userEmail.split("@")[0] : "Account";

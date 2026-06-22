@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrivy } from "@privy-io/react-auth";
+import { useGenLayerClient } from "@/lib/useGenLayerClient";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -27,11 +28,12 @@ interface CampaignWithMilestones {
 }
 
 export default function DashboardPage() {
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, login } = usePrivy();
+  const { signingAddress } = useGenLayerClient();
   const [tab, setTab] = useState<Tab>("created");
   const [created, setCreated] = useState<CampaignWithMilestones[]>([]);
   const [backed, setBacked] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitMilestone, setSubmitMilestone] = useState<{
@@ -42,7 +44,7 @@ export default function DashboardPage() {
   const [evidenceDesc, setEvidenceDesc] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const walletAddress = user?.wallet?.address;
+  const walletAddress = signingAddress;
 
   const loadData = async () => {
     if (!walletAddress) return;

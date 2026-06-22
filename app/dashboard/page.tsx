@@ -419,7 +419,7 @@ function CreatedTab({
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <StatusBadge status={m.status} />
-                        {m.status === "pending" && campaign.status === "funded" && (
+                        {m.status === "pending" && !["failed", "cancelled"].includes(campaign.status) && (
                           <button
                             onClick={() => onSubmitEvidence(campaign, m)}
                             className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition-all hover:opacity-80"

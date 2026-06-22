@@ -1,6 +1,7 @@
 "use client";
 
-import { PrivyProvider } from "@privy-io/react-auth";
+import { useEffect } from "react";
+import { PrivyProvider, usePrivy, useWallets, useCreateWallet } from "@privy-io/react-auth";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "sonner";
 import type { Chain } from "viem";
@@ -13,6 +14,25 @@ const studionet: Chain = {
     default: { http: ["https://studio.genlayer.com/api"] },
   },
 };
+
+// Silently creates an embedded wallet for any authenticated user who doesn't have one.
+// Covers accounts created before the createOnLogin config was set correctly.
+function WalletBootstrap() {
+  const { authenticated } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { createWallet } = useCreateWallet();
+
+  const hasEmbedded = wallets.some(
+    (w) => w.walletClientType === "privy" && w.connectorType === "embedded" && !w.imported
+  );
+
+  useEffect(() => {
+    if (!authenticated || !walletsReady || hasEmbedded) return;
+    createWallet().catch(() => {});
+  }, [authenticated, walletsReady, hasEmbedded]);
+
+  return null;
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -36,6 +56,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         }}
       >
         {children}
+        <WalletBootstrap />
         <Toaster
           position="bottom-right"
           toastOptions={{

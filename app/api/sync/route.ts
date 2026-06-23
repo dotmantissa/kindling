@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import sql from "@/lib/db";
 import { getGenLayerClient, CONTRACT_ADDRESS, isContractDeployed } from "@/lib/genlayer";
 
+const VERIFY_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
+
 export async function POST() {
   if (!isContractDeployed()) {
     return NextResponse.json({ ok: false, message: "Contract not deployed yet" });
@@ -66,17 +68,32 @@ export async function POST() {
           };
 
           if (chainM && chainM.id) {
-            // If the chain still shows "submitted" but our DB already marked the
-            // milestone as "verifying" (AI tx pending), don't roll it back — keep
-            // "verifying" until the AI consensus resolves to a final state.
             const [existingM] = await sql`
-              SELECT status FROM milestones
+              SELECT status, resolved_at FROM milestones
               WHERE campaign_id = ${existing.id} AND contract_milestone_id = ${mContractId}
             `;
-            const resolvedStatus =
-              chainM.status === "submitted" && existingM?.status === "verifying"
-                ? "verifying"
-                : chainM.status;
+
+            // Determine whether to preserve "verifying" while the AI tx is still pending
+            const isPreservingVerifying =
+              chainM.status === "submitted" && existingM?.status === "verifying";
+
+            let resolvedStatus = isPreservingVerifying ? "verifying" : chainM.status;
+
+            // Auto-reset to "submitted" if verification has been stuck for >20 min.
+            // Preserving the DB resolved_at (set when verification was triggered) lets
+            // us detect this even after multiple sync rounds.
+            if (isPreservingVerifying && existingM.resolved_at) {
+              const triggeredAt = new Date(existingM.resolved_at).getTime();
+              if (!isNaN(triggeredAt) && Date.now() - triggeredAt > VERIFY_TIMEOUT_MS) {
+                resolvedStatus = "submitted";
+              }
+            }
+
+            // When still verifying, keep our trigger timestamp; otherwise use chain value.
+            const resolvedAt =
+              resolvedStatus === "verifying"
+                ? existingM.resolved_at
+                : (chainM.resolved_at || null);
 
             await sql`
               UPDATE milestones SET
@@ -86,7 +103,7 @@ export async function POST() {
                 evidence_url = ${chainM.evidence_url || null},
                 evidence_description = ${chainM.evidence_description || null},
                 submitted_at = ${chainM.submitted_at || null},
-                resolved_at = ${chainM.resolved_at || null}
+                resolved_at = ${resolvedAt}
               WHERE campaign_id = ${existing.id} AND contract_milestone_id = ${mContractId}
             `;
           }

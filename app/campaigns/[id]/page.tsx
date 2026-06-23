@@ -17,6 +17,7 @@ import {
   ExternalLink,
   ArrowLeft,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { Campaign, Milestone, Backer } from "@/lib/schema";
@@ -131,7 +132,7 @@ export default function CampaignPage({
 
   const handleMilestoneAction = async (
     mid: string,
-    action: "verify" | "vote-approve" | "vote-reject" | "finalize",
+    action: "verify" | "vote-approve" | "vote-reject" | "finalize" | "retry-verify",
     extra?: Record<string, unknown>
   ) => {
     setActionLoading(`${mid}-${action}`);
@@ -142,6 +143,9 @@ export default function CampaignPage({
 
       if (action === "verify") {
         url += "/verify";
+      } else if (action === "retry-verify") {
+        url += "/reset-verify";
+        body = { wallet_address: walletAddress };
       } else if (action === "vote-approve" || action === "vote-reject") {
         const approve = action === "vote-approve";
         const client = await getClient();
@@ -166,6 +170,7 @@ export default function CampaignPage({
 
       const labels: Record<string, string> = {
         verify: "Verification triggered — checking every 8s for the AI verdict",
+        "retry-verify": "Reset — click \"Trigger AI verification\" to try again",
         "vote-approve": "Vote cast. You approved.",
         "vote-reject": "Vote cast. You rejected.",
         finalize: "Vote finalized",
@@ -570,7 +575,7 @@ function MilestoneRow({
   actionLoading: string | null;
   onAction: (
     mid: string,
-    action: "verify" | "vote-approve" | "vote-reject" | "finalize",
+    action: "verify" | "vote-approve" | "vote-reject" | "finalize" | "retry-verify",
     extra?: Record<string, unknown>
   ) => Promise<void>;
 }) {
@@ -692,7 +697,7 @@ function MilestoneRow({
                   style={{ background: "#ede9fe", color: "#6d28d9" }}
                 >
                   <Loader2 size={14} className="animate-spin shrink-0" />
-                  AI verification in progress — this page checks automatically every 8 seconds.
+                  AI verification in progress — checking every 8 seconds.
                 </div>
               )}
 
@@ -720,6 +725,15 @@ function MilestoneRow({
                     loading={isLoading("verify")}
                     onClick={() => onAction(milestone.id, "verify")}
                     primary
+                  />
+                )}
+
+                {milestone.status === "verifying" && isCreator && (
+                  <ActionBtn
+                    label="Retry verification"
+                    icon={<RefreshCw size={12} />}
+                    loading={isLoading("retry-verify")}
+                    onClick={() => onAction(milestone.id, "retry-verify")}
                   />
                 )}
 
@@ -763,12 +777,14 @@ function ActionBtn({
   onClick,
   primary,
   danger,
+  icon,
 }: {
   label: string;
   loading: boolean;
   onClick: () => void;
   primary?: boolean;
   danger?: boolean;
+  icon?: React.ReactNode;
 }) {
   return (
     <button
@@ -784,7 +800,7 @@ function ActionBtn({
         color: danger ? "#dc2626" : primary ? "#fff" : "var(--fg)",
       }}
     >
-      {loading && <Loader2 size={12} className="animate-spin" />}
+      {loading ? <Loader2 size={12} className="animate-spin" /> : icon}
       {label}
     </button>
   );
